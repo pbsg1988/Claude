@@ -1,0 +1,14 @@
+{
+  "name": "Strength Log",
+  "short_name": "Strength",
+  "description": "Offline log for sets, reps and weights in kg, plus daily mobility habits.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f9f7",
+  "theme_color": "#f9f9f7",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
