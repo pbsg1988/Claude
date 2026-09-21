@@ -495,14 +495,24 @@ const SEED = {
     { name: "Plank",                 group: "Core",      type: "time",       rest: 60  },
     { name: "Pallof Press",          group: "Core",      type: "weight",     rest: 60  },
     { name: "Dead Bug",              group: "Core",      type: "bodyweight", rest: 45  },
-    { name: "Farmer Carry",          group: "Core",      type: "time",       rest: 90  }
+    { name: "Farmer Carry",          group: "Core",      type: "time",       rest: 90  },
+    /* v2 - kettlebell-based routine ("Day A (revised)" / "Day B") */
+    { name: "Bodyweight Squat",              group: "Lower", type: "bodyweight", rest: 90  },
+    { name: "KB RDL",                        group: "Lower", type: "weight",     rest: 120 },
+    { name: "Walking Lunge",                 group: "Lower", type: "weight",     rest: 90  },
+    { name: "Push-up",                       group: "Upper", type: "bodyweight", rest: 90  },
+    { name: "Half-Kneeling Single-Arm KB Press", group: "Upper", type: "weight", rest: 120 },
+    { name: "Suitcase Carry",                group: "Core",  type: "time",       rest: 90  }
   ],
   templates: [
     { name: "Lower A",  exercises: ["Back Squat", "Romanian Deadlift", "Hip Thrust", "Calf Raise", "Plank"] },
     { name: "Upper A",  exercises: ["Bench Press", "Barbell Row", "Overhead Press", "Face Pull", "Dumbbell Curl"] },
     { name: "Lower B",  exercises: ["Romanian Deadlift", "Bulgarian Split Squat", "Hip Thrust", "Pallof Press", "Farmer Carry"] },
     { name: "Upper B",  exercises: ["Overhead Press", "Pull-up", "Lat Pulldown", "Bench Press", "Face Pull"] },
-    { name: "Full Body", exercises: ["Back Squat", "Bench Press", "Barbell Row", "Plank"] }
+    { name: "Full Body", exercises: ["Back Squat", "Bench Press", "Barbell Row", "Plank"] },
+    /* v2 */
+    { name: "Day A (revised)", exercises: ["Bodyweight Squat", "KB RDL", "Suitcase Carry", "Push-up", "Half-Kneeling Single-Arm KB Press"] },
+    { name: "Day B",           exercises: ["Walking Lunge", "KB RDL", "Pallof Press", "Dead Bug", "Suitcase Carry"] }
   ],
   habits: [
     "90/90 hip rotations",
@@ -515,6 +525,29 @@ const SEED = {
   ]
 };
 /* ------------------------- end SEED ------------------------- */
+
+/* Bumps here backfill new library exercises/templates into a browser that
+   already has logged data, without touching sessions or habit history.
+   Each entry's exercises/templates are matched and skipped by name, so
+   re-running (or a fresh install that already has them via SEED) is a no-op. */
+const SEED_VERSION = 2;
+const MIGRATIONS = [
+  {
+    version: 2,
+    exercises: [
+      { name: "Bodyweight Squat",              group: "Lower", type: "bodyweight", rest: 90  },
+      { name: "KB RDL",                        group: "Lower", type: "weight",     rest: 120 },
+      { name: "Walking Lunge",                 group: "Lower", type: "weight",     rest: 90  },
+      { name: "Push-up",                       group: "Upper", type: "bodyweight", rest: 90  },
+      { name: "Half-Kneeling Single-Arm KB Press", group: "Upper", type: "weight", rest: 120 },
+      { name: "Suitcase Carry",                group: "Core",  type: "time",       rest: 90  }
+    ],
+    templates: [
+      { name: "Day A (revised)", exercises: ["Bodyweight Squat", "KB RDL", "Suitcase Carry", "Push-up", "Half-Kneeling Single-Arm KB Press"] },
+      { name: "Day B",           exercises: ["Walking Lunge", "KB RDL", "Pallof Press", "Dead Bug", "Suitcase Carry"] }
+    ]
+  }
+];
 
 const STORE_KEY = "strengthLog.v1";
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
@@ -559,6 +592,7 @@ function freshState() {
   return {
     version: 1,
     seeded: true,
+    seedVersion: SEED_VERSION,
     exercises,
     templates: SEED.templates.map((t) => ({
       id: uid(), name: t.name, exerciseIds: t.exercises.map((n) => byName[n]).filter(Boolean)
@@ -591,6 +625,21 @@ function migrate(p) {
   p.habitLog = p.habitLog || {};
   p.settings = { theme: "auto", defaultRest: 120, bodyweight: 0, sound: true, ...(p.settings || {}) };
   p.ui = { lastTemplate: "", ...(p.ui || {}) };
+
+  p.seedVersion = p.seedVersion || 1;
+  MIGRATIONS.filter((m) => m.version > p.seedVersion).sort((a, b) => a.version - b.version).forEach((m) => {
+    (m.exercises || []).forEach((e) => {
+      if (!p.exercises.some((x) => x.name === e.name)) p.exercises.push({ id: uid(), archived: false, ...e });
+    });
+    const byName = {};
+    p.exercises.forEach((e) => { byName[e.name] = e.id; });
+    (m.templates || []).forEach((t) => {
+      if (!p.templates.some((x) => x.name === t.name)) {
+        p.templates.push({ id: uid(), name: t.name, exerciseIds: t.exercises.map((n) => byName[n]).filter(Boolean) });
+      }
+    });
+    p.seedVersion = m.version;
+  });
   return p;
 }
 
